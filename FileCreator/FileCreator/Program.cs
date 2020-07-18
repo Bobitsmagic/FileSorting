@@ -18,36 +18,22 @@ namespace FileCreator
 			string filePath = Environment.CurrentDirectory + "\\data.txt";
 			string resPath = Environment.CurrentDirectory + "\\result";
 			string bufferPath = Environment.CurrentDirectory + "\\buffer";
+
 			Directory.CreateDirectory(resPath);
 			Directory.CreateDirectory(bufferPath);
 
-			Console.WriteLine("Main File Entry Count: " + FileSize.ToString("000 000 000"));
-			Console.WriteLine("Sub File Entry Count: " + SampleSize.ToString("000 000 000"));
-			Console.WriteLine("Sub File Count: " + ((FileSize - 1) / SampleSize + 1).ToString("000 000"));
-
-
-			long start = Environment.TickCount;
 			CreateTestFile(FileSize, filePath);
-			Console.WriteLine("Created file in: " + (Environment.TickCount - start).ToString("000 000 000"));
 
-			start = Environment.TickCount;
 			SplitFiles(filePath, resPath, SampleSize);
-			Console.WriteLine("Split files in: " + (Environment.TickCount - start).ToString("000 000 000"));
 
-			start = Environment.TickCount;
 			string resDir = SortFiles(resPath, bufferPath, SampleSize,  (FileSize - 1) / SampleSize + 1);
-			Console.WriteLine("Sorted files in: " + (Environment.TickCount - start).ToString("000 000 000"));
 
-			start = Environment.TickCount;
 			CheckFiles(resDir, (FileSize - 1) / SampleSize + 1);
-			Console.WriteLine("Checked files in: " + (Environment.TickCount - start).ToString("000 000 000"));
-
-			Console.ReadLine();
 		}
 
 		public static void CreateTestFile(int n, string path)
 		{
-			Random rnd = new Random(0);
+			Random rnd = new Random();
 			string alphabet = "abcdefghijklmnopqrstuvwxyz";
 
 			StreamWriter sw = File.CreateText(path);
@@ -73,8 +59,6 @@ namespace FileCreator
 				{
 					sw.Write(s);
 					s.Clear();
-
-					Console.WriteLine("TestFile: " + ((double)i + 1) * 100 / n + " %");
 				}
 			}
 
@@ -103,19 +87,10 @@ namespace FileCreator
 
 					if (index == list.Length)
 					{
-						//Console.WriteLine("ReadTime: " + (Environment.TickCount - start).ToString("000 000"));
-						start = Environment.TickCount;
-
 						Parallel.For(0, list.Length, i => Array.Sort(list[i]));
 
-						//Console.WriteLine("SortTime: " + (Environment.TickCount - start).ToString("000 000"));
-						start = Environment.TickCount;
-
-						Parallel.For(0, list.Length, i => File.WriteAllLines(result + "\\" + fileCounter++.ToString() + ".txt", list[i]));
-						
-						//Console.WriteLine("WriteTime: " + (Environment.TickCount - start).ToString("000 000"));
-						start = Environment.TickCount;
-
+						Parallel.For(0, list.Length, i => File.WriteAllLines(result + "\\" + (fileCounter + i).ToString() + ".txt", list[i]));
+						fileCounter += list.Length;
 
 						lineCounter = 0;
 						index = 0;
@@ -127,17 +102,8 @@ namespace FileCreator
 
 			if (index == 0) return;
 
-			//Console.WriteLine("ReadTime: " + (Environment.TickCount - start).ToString("000 000"));
-			start = Environment.TickCount;
-
 			Parallel.For(0, index, i => Array.Sort(list[i]));
-
-			//Console.WriteLine("SortTime: " + (Environment.TickCount - start).ToString("000 000"));
-			start = Environment.TickCount;
-
 			Parallel.For(0, index, i => File.WriteAllLines(result + "\\" + fileCounter++.ToString() + ".txt", list[i]));
-
-			//Console.WriteLine("WriteTime: " + (Environment.TickCount - start).ToString("000 000"));
 		}
 
 		public static string SortFiles(string readPath, string writePath, int sampleSize, int fileCount)
@@ -147,13 +113,9 @@ namespace FileCreator
 
 			for(int stepSize = 2; stepSize < fileCount * 2; stepSize *= 2)
 			{
-				Console.WriteLine("Current stepSize: " + stepSize);
-				//Console.WriteLine(stepSize);
 				int resFile = 0;
 				for (int i = 0; i < fileCount; i += stepSize)
 				{
-					Console.WriteLine("Index: " + i);
-
 					int fileA = i;
 					int fileB = i + stepSize / 2;
 
@@ -234,7 +196,6 @@ namespace FileCreator
 				readPath = buffer;
 			}
 
-			Console.WriteLine("Results in: " + readPath);
 			return readPath;
 		}
 
