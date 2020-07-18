@@ -10,8 +10,9 @@ namespace FileCreator
 	class Program
 	{
 		const int FileSize =	20_000_000;
+		
+		//Choose this number so that 3 arrays of size SamplesSize can fit into your ram
 		const int SampleSize =	4_000_000;
-		const int FileCount = ((FileSize - 1) / SampleSize + 1);
 
 		static void Main(string[] args)
 		{
@@ -22,13 +23,20 @@ namespace FileCreator
 			Directory.CreateDirectory(resPath);
 			Directory.CreateDirectory(bufferPath);
 
+			//Creating a test file with #FileSize entries
 			CreateTestFile(FileSize, filePath);
 
+			//Split the main file into #FileSize/#SampleSize  
 			SplitFiles(filePath, resPath, SampleSize);
 
+			//Merge sort all subfiles                                   #number if sub files needed (round up)
 			string resDir = SortFiles(resPath, bufferPath, SampleSize,  (FileSize - 1) / SampleSize + 1);
 
+			//Check if everything went correctly
 			CheckFiles(resDir, (FileSize - 1) / SampleSize + 1);
+
+			Console.WriteLine("Done");
+			Console.ReadLine();
 		}
 
 		public static void CreateTestFile(int n, string path)
@@ -74,10 +82,11 @@ namespace FileCreator
 			int fileCounter = 0;
 			int lineCounter = 0;
 			int index = 0;
-			long start = Environment.TickCount;
 			string s;
+
 			while ((s = sr.ReadLine()) != null)
 			{
+				//read lines until you fill 3 buffers
 				list[index][lineCounter++] = s;
 
 				if(lineCounter == sampleSize)
@@ -87,21 +96,23 @@ namespace FileCreator
 
 					if (index == list.Length)
 					{
+						//Sort all 3 buffers in parallel
 						Parallel.For(0, list.Length, i => Array.Sort(list[i]));
 
+						//Write all buffers to files
 						Parallel.For(0, list.Length, i => File.WriteAllLines(result + "\\" + (fileCounter + i).ToString() + ".txt", list[i]));
 						fileCounter += list.Length;
 
 						lineCounter = 0;
 						index = 0;
-
-						Console.WriteLine("SplitFiles: " + ((double)fileCounter * 100 / FileCount + " %"));
 					}
 				}
 			}
 
+			
 			if (index == 0) return;
 
+			//same thing for the remainder (FileSize / SampleSize)
 			Parallel.For(0, index, i => Array.Sort(list[i]));
 			Parallel.For(0, index, i => File.WriteAllLines(result + "\\" + fileCounter++.ToString() + ".txt", list[i]));
 		}
@@ -111,6 +122,7 @@ namespace FileCreator
 			string[] a = null, b = null;
 			List<string> res = new List<string>(sampleSize);
 
+			//Merge 2 lists of size stepsize / 2
 			for(int stepSize = 2; stepSize < fileCount * 2; stepSize *= 2)
 			{
 				int resFile = 0;
@@ -120,12 +132,18 @@ namespace FileCreator
 					int fileB = i + stepSize / 2;
 
 					int indexA = 0, indexB = 0;
+
 					if (fileA < i + stepSize / 2) 
 						a = File.ReadAllLines(readPath + "\\" + fileA.ToString() + ".txt");
+
 					if (fileB < Math.Min(fileCount, i + stepSize)) 
 						b = File.ReadAllLines(readPath + "\\" + fileB.ToString() + ".txt");
+
+
+					//While both lists are not exceeded
 					while(fileA < Math.Min(fileCount, i + stepSize / 2) && fileB < Math.Min(fileCount, i + stepSize))
 					{
+						//while no buffer exceeds
 						while (indexA < a.Length && indexB < b.Length)
 						{
 							if (a[indexA].CompareTo(b[indexB]) <= 0)
@@ -133,6 +151,7 @@ namespace FileCreator
 							else
 								res.Add(b[indexB++]);
 
+							//reached [sampleSize] elements
 							if(res.Count == sampleSize)
 							{
 								File.WriteAllLines(writePath + "\\" + resFile++.ToString() + ".txt", res);
@@ -141,6 +160,7 @@ namespace FileCreator
 							}
 						}
 
+						//load new buffer
 						if (indexA < a.Length)
 						{				
 							fileB++;
@@ -158,7 +178,7 @@ namespace FileCreator
 						}
 					}
 
-					
+					//Copy the remaining elements of the non exceeded buffer
 					while(fileA < Math.Min(fileCount, i + stepSize / 2))
 					{
 						while(indexA < a.Length)
@@ -171,7 +191,8 @@ namespace FileCreator
 						indexA = 0;
 						fileA++;
 
-						while(fileA < Math.Min(fileCount, i + stepSize / 2))
+						//the rest of the files dont need to be processesd, just copied
+						while (fileA < Math.Min(fileCount, i + stepSize / 2))
 							File.Copy(readPath + "\\" + fileA++.ToString() + ".txt", writePath + "\\" + resFile++.ToString() + ".txt", true);
 					}
 					while (fileB < Math.Min(fileCount, i + stepSize))
@@ -186,11 +207,13 @@ namespace FileCreator
 						indexB = 0;
 						fileB++;
 
+						//the rest of the files dont need to be processesd, just copied
 						while (fileB < Math.Min(fileCount, i + stepSize))
 							File.Copy(readPath + "\\" + fileB++.ToString() + ".txt", writePath + "\\" + resFile++.ToString() + ".txt", true);
 					}
 				}
 
+				//swap read and write directory
 				string buffer = writePath;
 				writePath = readPath;
 				readPath = buffer;
